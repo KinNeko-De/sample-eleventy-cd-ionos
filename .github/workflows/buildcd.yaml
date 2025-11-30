@@ -34,6 +34,10 @@ jobs:
     name: Continuous Deployment to Production
     runs-on: ubuntu-latest
     needs: build
+    timeout-minutes: 1
+    environment:
+      name: production
+      url: https://cd-sample.kinneko.de
     steps:
       - name: Download site artifact
         uses: actions/download-artifact@v6
@@ -54,3 +58,12 @@ jobs:
             mkdir -p _site
             tar -xvf "$TARFILE" -C _site
           fi
+
+      - name: Deploy site via SFTP
+        uses: KinNeko-De/deploy-sftp-action@v0
+        with:
+          ftp_username: ${{ secrets.FTP_USERNAME }}
+          ftp_password: ${{ secrets.FTP_PASSWORD }}
+          ftp_server: ${{ secrets.FTP_SERVER }}
+          local_dir: _site
+          remote_dir: .
