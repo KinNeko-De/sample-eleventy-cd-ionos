@@ -1,0 +1,38 @@
+name: Cleanup Preview
+
+on:
+  delete:
+
+jobs:
+  cleanup:
+    name: Remove Preview Deployment
+    runs-on: ubuntu-latest
+    environment: preview
+    if: github.event.ref_type == 'branch' && github.event.ref != github.event.repository.default_branch
+    steps:
+      - name: Compute preview directory name
+        id: compute
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BRANCH_NAME: ${{ github.event.ref }}
+        run: |
+          echo "Branch name: $BRANCH_NAME"
+          echo "Default branch: $DEFAULT_BRANCH"
+
+          if [ "$BRANCH_NAME" = "$DEFAULT_BRANCH" ]; then
+            echo "This is the default branch, this is not supported."
+            exit 1
+          fi
+
+          PREVIEW_DIR=$(echo "$BRANCH_NAME" | tr '/' '-')
+          echo "Preview directory to remove: $PREVIEW_DIR"
+          echo "preview_dir=$PREVIEW_DIR" >> $GITHUB_OUTPUT
+
+      - name: Remove preview deployment via SFTP
+        timeout-minutes: 1
+        uses: KinNeko-De/delete-sftp-action@v0
+        with:
+          ftp_username: ${{ secrets.FTP_USERNAME }}
+          ftp_password: ${{ secrets.FTP_PASSWORD }}
+          ftp_server: ${{ secrets.FTP_SERVER }}
+          dir_to_delete: ${{ steps.compute.outputs.preview_dir }}
