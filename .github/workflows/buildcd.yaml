@@ -7,7 +7,8 @@ jobs:
   build:
     name: Build Website
     runs-on: ubuntu-latest
-
+    outputs:
+      base_path_slash: ${{ steps.pages.outputs.base_path_slash }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -50,6 +51,37 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: _site
+
+  preview:
+    name: Continuous Deployment to Preview
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 1
+    environment:
+      name: preview
+      url: https://preview-cd-sample.kinneko.de${{ needs.build.outputs.base_path_slash }}
+    if:
+      github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
+    steps:
+      - name: Download site artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: github-pages
+          path: .
+
+      - name: Extract pages artifact tar
+        run: |
+          set -e
+          echo "Looking for .tar file in root..."
+          TARFILE=$(find . -maxdepth 1 -type f -name "*.tar" -print -quit)
+          if [ -z "$TARFILE" ]; then
+            echo "ERROR: No tar archive found in root."
+            exit 1
+          else
+            echo "Found tar archive: $TARFILE"
+            mkdir -p _site
+            tar -xvf "$TARFILE" -C _site
+          fi
 
   cd:
     name: Continuous Deployment to Production
